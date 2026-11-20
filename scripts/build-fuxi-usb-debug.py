@@ -49,6 +49,12 @@ if not (module / 'tests/check.py').is_file():
                     '--module', qud, '--xnu', root / 'refer/xnu',
                     '--output', module], check=True)
 
+# Keep the USB panic log drain without adding the optional post-drain fastboot hook.
+# Refuse an old staged module rather than building it or changing it in place.
+if ('FUXI_PANIC_FASTBOOT' in (module / 'soc/FuxiSm8550.h').read_text() or
+        'fuxi_panic_fastboot(' in (module / 'kernel/QcomXnuUsbDebug.c').read_text()):
+    raise SystemExit('panic-fastboot hook present in staged USB inputs; use a fresh staging directory')
+
 llvm = Path('/opt/homebrew/opt/llvm/bin')
 if not llvm.is_dir():
     # Linux host: the framework's toolchain provides llvm-config. Its clang is the host
@@ -84,18 +90,7 @@ run([sys.executable, module / 'tests/check.py', '--target-clang', llvm / 'clang'
 matches = list(records.glob('**/pe_kprintf.o.json'))
 if len(matches) != 1:
     raise SystemExit('missing or ambiguous actual PE compile record')
-# Only the iOS 17 fuxi archive opts into the post-drain hook, and only once the module is staged:
-# the header the module's panic path includes is copied next to it, and the request/commit calls stay
-# thin because package/QcomReset.c owns every register and every firmware call.
 shutil.copy2(root / 'kits/fuxi/BootResetCore.h', module / 'kernel/BootResetCore.h')
-board_header = module / 'soc/FuxiSm8550.h'
-if 'FUXI_PANIC_FASTBOOT' not in board_header.read_text():
-    with board_header.open('a') as stream:
-        stream.write('\n#define FUXI_PANIC_FASTBOOT 1\n')
-if 'fuxi_panic_fastboot(void)' not in (module / 'kernel/QcomXnuUsbDebug.c').read_text():
-    subprocess.run(['patch', '-p1', '--batch', '--forward', '-i',
-                    str(Path(__file__).with_name('fuxi-usb-panic-fastboot.patch'))],
-                   cwd=module, check=True)
 
 run([sys.executable, module / 'scripts/build.py', '--compile-record', matches[0],
      '--soc', 'soc/FuxiSm8550.h', '--ar', llvm / 'llvm-ar', '--nm', llvm / 'llvm-nm', '--output', out])
