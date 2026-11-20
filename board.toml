@@ -192,16 +192,15 @@ kernel_args = ["-v", "serial=3", "debug=0x14e", "boot-progress=2", "kt_fixed_zon
                # -enable_kprintf_spam is gone: unixnu-fuxi-old does not set it, and the console drops
                # lines under that volume (QCOM USB LOSS contention climbing), which hid the first UFS
                # error behind thousands of repeats.
-               "sheng-disable-watchdogd=1", "qcom-usb-debug=1", "qcom-usb-ctl=1", "fuxi-panic-fastboot=30",
+               "sheng-disable-watchdogd=1", "qcom-usb-debug=1", "qcom-usb-ctl=1",
                # Content follows unixnu-fuxi-old one switch at a time: sheng-aks brings up Apple
                # KeyStore, which AMFI consults before it accepts the adhoc-signed System volume.
                "sheng-aks=1",
-               # NativeUfs opens its read/write Data-store window only at 2 (storeMode()).
-               "sheng-data-persist=2",
+               # Use read-only Data-store inspection; mode 1 does not open the persistent write window.
+               "sheng-data-persist=1",
                # The partition's tail still holds a store written for the previous (220 GiB) seed; this seed
                # does not match its header, so the overlay stays inactive and writes fall back to the
-               # read-only seed. This drops the old store once, as the boot menu's "Install and boot" does.
-               "sheng-data-reset=1",
+               # read-only seed. Do not reset the persistent store in this trial.
                # The owned AppleKeyStore probe (package/FuxiKeyStoreProbe.cpp) only runs with this set;
                # sheng passes the same switch. Without it MobileKeyBag has nothing to talk to and dies
                # on the missing systembag.kb.
@@ -230,7 +229,7 @@ kernel_args = ["-v", "serial=3", "debug=0x14e", "boot-progress=2", "kt_fixed_zon
                # 7 keeps the probe read-only: the GMU/clock/DCVS observation runs, but gpuOn() (the write sequence that
                # mode 8 and 9 reach) stays off. On the device mode 9 crashed with a data abort inside gpuOn() at
                # +0x7b8, so the write path is not established yet; see the note in the commit.
-               "sheng-gpu-power=9",
+               "sheng-gpu-power=7",
           "sheng-gpu-zap=4",
           "fuxi-probe-prologue=1",
           "fuxi-probe-tctrl=0x08000001",
